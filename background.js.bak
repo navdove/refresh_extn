@@ -22,8 +22,7 @@ function refreshCurrentTab() {
         if (!enabled) {
           stopBadgeCountdown();
           nextRefreshTime = null;
-          chrome.action.setBadgeText({ text: '' })
-      chrome.action.setBadgeBackgroundColor({ color: '#ffffff' });
+          chrome.action.setBadgeText({ text: '' });
           return;
         }
 
@@ -199,8 +198,7 @@ async function setTabEnabled(tabId, enabled) {
     } else {
       stopBadgeCountdown();
       nextRefreshTime = null;
-      chrome.action.setBadgeText({ text: '' })
-      chrome.action.setBadgeBackgroundColor({ color: '#ffffff' });
+      chrome.action.setBadgeText({ text: '' });
       chrome.alarms.clear('refreshTab');
       chrome.alarms.clear('badgeCountdown');
     }
@@ -228,8 +226,7 @@ async function syncActiveTab() {
       currentTabEnabled = false;
       stopBadgeCountdown();
       nextRefreshTime = null;
-      chrome.action.setBadgeText({ text: '' })
-      chrome.action.setBadgeBackgroundColor({ color: '#ffffff' });
+      chrome.action.setBadgeText({ text: '' });
       return;
     }
 
@@ -246,8 +243,7 @@ async function syncActiveTab() {
     } else {
       stopBadgeCountdown();
       nextRefreshTime = null;
-      chrome.action.setBadgeText({ text: '' })
-      chrome.action.setBadgeBackgroundColor({ color: '#ffffff' });
+      chrome.action.setBadgeText({ text: '' });
       chrome.alarms.clear('refreshTab');
       chrome.alarms.clear('badgeCountdown');
     }
@@ -260,16 +256,14 @@ function getSelectedMinutes() {
 
 function updateBadgeDisplay() {
   if (nextRefreshTime === null) {
-    chrome.action.setBadgeText({ text: '' })
-      chrome.action.setBadgeBackgroundColor({ color: '#ffffff' });
+    chrome.action.setBadgeText({ text: '' });
     return;
   }
 
   const secondsLeft = Math.max(0, Math.ceil((nextRefreshTime - Date.now()) / 1000));
 
   if (secondsLeft === 0) {
-    chrome.action.setBadgeText({ text: '' })
-      chrome.action.setBadgeBackgroundColor({ color: '#ffffff' });
+    chrome.action.setBadgeText({ text: '' });
     stopBadgeCountdown();
     return;
   }
@@ -286,7 +280,8 @@ function updateBadgeDisplay() {
 
 function startBadgeCountdown() {
   stopBadgeCountdown();
-  
+  updateBadgeDisplay();
+
   badgeCountdownTimer = setInterval(() => {
     if (nextRefreshTime === null) {
       stopBadgeCountdown();
@@ -305,7 +300,6 @@ function startBadgeCountdown() {
 
     if (secondsLeft === 0) {
       stopBadgeCountdown();
-      chrome.action.setBadgeText({ text: '' });
     }
   }, 1000);
 }
@@ -379,8 +373,7 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
     } else {
       stopBadgeCountdown();
       nextRefreshTime = null;
-      chrome.action.setBadgeText({ text: '' })
-      chrome.action.setBadgeBackgroundColor({ color: '#ffffff' });
+      chrome.action.setBadgeText({ text: '' });
       chrome.alarms.clear('refreshTab');
       chrome.alarms.clear('badgeCountdown');
     }
@@ -400,8 +393,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
     currentTabEnabled = false;
     stopBadgeCountdown();
     nextRefreshTime = null;
-    chrome.action.setBadgeText({ text: '' })
-      chrome.action.setBadgeBackgroundColor({ color: '#ffffff' });
+    chrome.action.setBadgeText({ text: '' });
     chrome.alarms.clear('refreshTab');
     chrome.alarms.clear('badgeCountdown');
   }
