@@ -10,6 +10,8 @@
 | **Tab State Persistence** | ✅ Implemented | Tab enable/disable state stored in `chrome.storage.session` |
 | **Visual Indicators** | ✅ Implemented | Extension icon shows active (blue) or inactive (gray) state per tab |
 | **Badge Countdown** | ✅ Implemented | Shows minutes until refresh, switches to seconds countdown in final 30s |
+| **Decrementing Countdown** | ✅ Implemented | Real-time second-by-second countdown when < 30s remaining |
+| **Badge Clear on Inactive** | ✅ Implemented | Badge text and background cleared when extension is disabled |
 | **Active Tab Only** | ✅ Implemented | Only the currently active tab is refreshed |
 | **Cross-Tab State** | ✅ Implemented | Each tab maintains independent refresh state |
 
@@ -24,6 +26,14 @@ The extension operates on a **per-tab basis**:
 - Tab states are tracked individually using `chrome.storage.session`
 - When you switch tabs, the extension checks if the new active tab is enabled
 - If the new tab is disabled, refresh scheduling stops immediately
+
+### Badge Display Behavior
+
+| Time Remaining | Badge Text | Badge Color |
+|----------------|------------|-------------|
+| > 30 seconds | Minutes (e.g., "3") | Blue (#2196F3) |
+| 30-1 seconds | Seconds countdown (e.g., "25", "24"... "1") | Red (#ff4444) |
+| Extension disabled | Empty | White/transparent |
 
 ### Refresh Logic Flow
 
@@ -50,6 +60,8 @@ The extension operates on a **per-tab basis**:
 | Close enabled tab | Tab state removed from storage |
 | Close active tab | Refresh stops, state cleared |
 | Tab enabled but not active | No refresh occurs (waits for activation) |
+| < 30s until refresh | Real-time countdown (30, 29, 28... 1) |
+| Extension inactive | No badge displayed |
 
 ## Future Enhancement Ideas
 
@@ -70,3 +82,4 @@ The extension operates on a **per-tab basis**:
 - **Scheduling**: `chrome.alarms` API for reliable timing
 - **Reactivity**: Svelte 5 runes for UI state management
 - **Icon Rendering**: Dynamic canvas-generated icons (active/inactive states)
+- **Badge Updates**: 1-second interval timer for real-time countdown
