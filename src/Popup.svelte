@@ -1,17 +1,65 @@
+<script lang="ts" module>
+  declare const chrome: any;
+</script>
+
 <script lang="ts">
   import { onMount } from 'svelte';
   import { RefreshCw, Clock, AlertTriangle, CheckCircle } from 'lucide-svelte';
 
-  let intervalType = $state('random');
-  let customMinutes = $state(3);
-  let statusMessage = $state('Loading status...');
-  let isRefreshing = $state(false);
+  let intervalType = $state<'random' | 'custom'>('random');
+  let customMinutes = $state<number>(3);
+  let statusMessage = $state<string>('Loading status...');
+  let isRefreshing = $state<boolean>(false);
+  let currentTabEnabled = $state<boolean>(false);
+  let currentTabId = $state<number | null>(null);
+
+  function loadCurrentTabState() {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const activeTab = tabs[0];
+
+      if (!activeTab?.id) {
+        currentTabId = null;
+        currentTabEnabled = false;
+        return;
+      }
+
+      currentTabId = activeTab.id;
+      chrome.runtime.sendMessage(
+        { action: 'getTabState', tabId: activeTab.id },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            currentTabEnabled = false;
+            return;
+          }
+
+          currentTabEnabled = Boolean(response?.enabled);
+        }
+      );
+    });
+  }
+
+  function toggleCurrentTab() {
+    if (currentTabId === null) {
+      return;
+    }
+
+    chrome.runtime.sendMessage(
+      { action: 'setTabState', tabId: currentTabId, enabled: !currentTabEnabled },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          return;
+        }
+
+        currentTabEnabled = Boolean(response?.enabled);
+        statusMessage = currentTabEnabled ? 'Enabled on this tab' : 'Disabled on this tab';
+      }
+    );
+  }
 
   function handleIntervalChange() {
-    if (intervalType === 'custom') {
-      document.getElementById('customIntervalSetting')!.style.display = 'block';
-    } else {
-      document.getElementById('customIntervalSetting')!.style.display = 'none';
+    const customSetting = document.getElementById('customIntervalSetting');
+    if (customSetting) {
+      customSetting.style.display = intervalType === 'custom' ? 'block' : 'none';
     }
   }
 
@@ -30,10 +78,10 @@
         const secsDisplay = secondsLeft % 60;
 
         if (response.showBadge) {
-          statusMessage = `Refreshing in ${secsDisplay}s`
+          statusMessage = `Refreshing in ${secsDisplay}s`;
           isRefreshing = true;
         } else {
-          statusMessage = `<Next refresh in ~{minutesLeft}m {secsDisplay}s:`
+          statusMessage = `Next refresh in ~${minutesLeft}m ${secsDisplay}s`;
           isRefreshing = false;
         }
       }
@@ -41,7 +89,8 @@
   }
 
   async function handleApply() {
-    const type = intervalType;    
+    const type = intervalType;
+    
     if (type === 'random') {
       await chrome.runtime.sendMessage(
         { action: 'updateSettings', interval: null }
@@ -53,13 +102,14 @@
       if (customMin < 1 || customMin > 60) {
         alert('Please enter a value between 1 and 60 minutes');
         return;
-      }       
+      }
+      
       const intervalMs = customMin * 60 * 1000;
       await chrome.runtime.sendMessage(
         { action: 'updateSettings', interval: intervalMs }
       );
       getStatus();
-      showNotification(`Set to refresh every ${customMin= minute(s)`);
+      showNotification(`Set to refresh every ${customMin} minute(s)`);
     }
   }
 
@@ -67,13 +117,15 @@
     const notification = document.createElement('div');
     notification.className = 'notification';
     notification.textContent = message;
-    document.body.appendChild(notification);    
+    document.body.appendChild(notification);
+    
     setTimeout(() => {
       notification.remove();
     }, 2000);
   }
 
   onMount(() => {
+    loadCurrentTabState();
     getStatus();
     const interval = setInterval(getStatus, 1000);
     return () => clearInterval(interval);
@@ -82,40 +134,44 @@
 
 <div class="container">
   <div class="header">
-    <RefreshCw class="icon" size={r24} />
+    <RefreshCw class="icon" size={24} />
     <h2>Tab Refresher</h2>
-  </div>   
+  </div>
+
   <div class="setting">
     <label for="intervalType">Refresh Interval:</label>
-    <select id="intervalType" bind:value{intervalType} on:change={handleIntervalChange}>
-      <option value="random">Random (1-5\mins)</option>
+    <select id="intervalType" bind:value={intervalType} onchange={handleIntervalChange}>
+      <option value="random">Random (1-5 mins)</option>
       <option value="custom">Custom Time</option>
     </select>
   </div>
 
-  <div class="setting custom-interval" id="customIntervalSetting" style:display={intervalType === 'custom' ? 'block' : 'none'}>
+  <button class="tab-toggle-btn" onclick={toggleCurrentTab}>
+    {currentTabEnabled ? 'Disable on this tab' : 'Enable on this tab'}
+  </button>
+
+  <div class="setting custom-interval" id="customIntervalSetting" style="display: {intervalType === 'custom' ? 'block' : 'none'};">
     <label for="customMinutes">
       <Clock size={16} /> Custom minutes:
     </label>
-    <input      type="number" 
-      id="customMinutes"      bind:value{customMinutes}      min="1"      max="60"  />
+    <input type="number" bind:value={customMinutes} min="1" max="60" />
   </div>
 
-  <button class="apply-btn" on:click={handleApply}>
-    <CheckCircle size={18}  /> Apply Settings
+  <button class="apply-btn" onclick={handleApply}>
+    <CheckCircle size={18} /> Apply Settings
   </button>
 
   <div class="status">
     {#if isRefreshing}
       <AlertTriangle class="warning-icon" size={16} />
-    /{if}
+    {/if}
     <span class="status-text">{statusMessage}</span>
   </div>
 </div>
 
- <style>
+<style>
   :global(body) {
-    width: 280ex;
+    width: 280px;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     margin: 0;
@@ -133,11 +189,11 @@
     margin-bottom: 20px;
   }
 
-  .icon {
+  :global(.icon) {
     color: #2196F3;
   }
 
-   h2 {
+  h2 {
     margin: 0;
     font-size: 18px;
     color: #333;
@@ -148,6 +204,28 @@
     margin-bottom: 15px;
   }
 
+  .tab-toggle-btn {
+    width: 100%;
+    padding: 11px 12px;
+    margin-bottom: 15px;
+    background: #111827;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  .tab-toggle-btn:hover {
+    background: #1f2937;
+  }
+
+  .tab-toggle-btn:active {
+    transform: scale(0.98);
+  }
+
   label {
     display: flex;
     align-items: center;
@@ -155,7 +233,7 @@
     margin-bottom: 8px;
     font-weight: 500;
     color: #555;
-    font-size: 11px;
+    font-size: 14px;
   }
 
   select, input[type="number"] {
@@ -183,7 +261,7 @@
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 500;
     display: flex;
     align-items: center;
@@ -216,12 +294,12 @@
     word-break: break-word;
   }
 
-  .warning-icon {
+  :global(.warning-icon) {
     color: #ff4444;
     flex-shrink: 0;
   }
 
-  .notification {
+  :global(.notification) {
     position: fixed;
     bottom: 20px;
     left: 50%;
